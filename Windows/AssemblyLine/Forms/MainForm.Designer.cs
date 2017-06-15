@@ -87,6 +87,7 @@
             this.buttonToWebcam.Appearance.Font = new System.Drawing.Font("Arial", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.buttonToWebcam.Appearance.Options.UseFont = true;
             this.buttonToWebcam.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.buttonToWebcam.Enabled = false;
             this.buttonToWebcam.Location = new System.Drawing.Point(411, 374);
             this.buttonToWebcam.LookAndFeel.SkinMaskColor = System.Drawing.Color.Blue;
             this.buttonToWebcam.LookAndFeel.SkinName = "Visual Studio 2013 Light";
@@ -103,6 +104,7 @@
             this.buttonToFirst.Appearance.Font = new System.Drawing.Font("Arial", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.buttonToFirst.Appearance.Options.UseFont = true;
             this.buttonToFirst.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.buttonToFirst.Enabled = false;
             this.buttonToFirst.Location = new System.Drawing.Point(139, 374);
             this.buttonToFirst.LookAndFeel.SkinMaskColor = System.Drawing.Color.Blue;
             this.buttonToFirst.LookAndFeel.SkinName = "Visual Studio 2013 Light";
@@ -195,6 +197,7 @@
             // 
             this.tableLayoutPanel1.SetColumnSpan(this.trackBar1, 3);
             this.trackBar1.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.trackBar1.Enabled = false;
             this.trackBar1.Location = new System.Drawing.Point(136, 331);
             this.trackBar1.Margin = new System.Windows.Forms.Padding(0);
             this.trackBar1.Maximum = 0;
@@ -262,6 +265,7 @@
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.Name = "MainForm";
             this.Text = "Сортировочная станция";
+            this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.MainForm_FormClosing);
             this.tableLayoutPanel1.ResumeLayout(false);
             this.tableLayoutPanel1.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureWebCam)).EndInit();

@@ -1,11 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 using DirectShowLib;
@@ -35,7 +28,6 @@ namespace AssemblyLine
         }
         private void initializeSettings()
         {
-
             try
             {
                 string camPath = Registry.GetValue(@"HKEY_CURRENT_USER\SOFTWARE\Des1re Programs\AssemblyLine", "CameraPath", "").ToString();
@@ -59,15 +51,24 @@ namespace AssemblyLine
             }
             catch
             {
-                MessageBox.Show("Не удалось считать все настройки!", "Ошибка чтения настроек", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                checkBoxTrainingMode.Checked = trainingMode;
+                numericRecognitionThreshold.Value = recognitionThreshold;
+                MessageBox.Show("Не удалось считать все настройки!\nУстановка настроек по дефолту!", "Ошибка чтения настроек", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
         private void buttonSave_Click(object sender, EventArgs e)
         {
-            cameraPath = systemCamereas[comboBoxCamera.SelectedIndex].DevicePath;
-            trainingMode = checkBoxTrainingMode.Checked;
-            recognitionThreshold = numericRecognitionThreshold.Value;
-            DialogResult = DialogResult.OK;
+            try
+            {
+                cameraPath = systemCamereas[comboBoxCamera.SelectedIndex].DevicePath;
+                trainingMode = checkBoxTrainingMode.Checked;
+                recognitionThreshold = numericRecognitionThreshold.Value;
+                DialogResult = DialogResult.OK;
+            }
+            catch
+            {
+                MessageBox.Show("Не удалось сохранить все настройки!", "Ошибка сохранения настроек", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private void buttonCancel_Click(object sender, EventArgs e)

@@ -104,6 +104,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Classes\ExceptionShower.cs" />
     <Compile Include="Classes\ObjectInfo.cs" />
     <Compile Include="Classes\ShapeRecognition.cs" />
     <Compile Include="Forms\MainForm.cs">

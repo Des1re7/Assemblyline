@@ -27,7 +27,13 @@ namespace AssemblyLine
         private static bool carGo = false;
         private static bool carGoBack = false;
 
+        private static int ticks = 0;
+        private static bool isCamFokus = false;
+        private static bool isNeedCamFokus = false;
+        private static bool firstPhoto = true;
+
         private double recognitionThreshold = 0;
+        private bool isFormClosing = false;
 
         private Image[] imgHistory = new Image[10];
         private int imgNumber = 0;
@@ -44,7 +50,7 @@ namespace AssemblyLine
 
             threadCarGoing = new Thread(this.carGoing);
         }
-
+        
         private void initializeSettings()
         {
             try
@@ -53,22 +59,25 @@ namespace AssemblyLine
                 recognitionThreshold = Convert.ToDouble(Registry.GetValue(@"HKEY_CURRENT_USER\SOFTWARE\Des1re Programs\AssemblyLine", "RecognitionThreshold", 60));
             }
             catch {
-                MessageBox.Show("Ну удалось считать все настройки!", "Ошибка чтения настроек", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+                MessageBox.Show("Ну удалось считать все настройки!", "Ошибка чтения настроек", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private void carGoing()
         {
-            SerialPort comCar = new SerialPort("COM4", 9600);
             try
             {
-                comCar.Open();
-            }
-            catch
-            {
-                MessageBox.Show("Неудалось включить ленту", "Ошибка!", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+                SerialPort comCar = new SerialPort("COM4", 9600);
+                try
+                {
+                    comCar.Open();
+                }
+                catch
+                {
+                    MessageBox.Show("Неудалось включить ленту", "Ошибка!", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
 
-            while (arduinoIsWorking)
+                while (arduinoIsWorking)
                 {
                     while (carGo)
                     {
@@ -77,58 +86,91 @@ namespace AssemblyLine
                     }
                     if (carGoBack)
                     {
-                        comCar.Write("000000000");
+                        comCar.Write("0000"); // 0000
                         carGoBack = false;
                     }
                     Thread.Sleep(100);
+                    if (isFormClosing)
+                    {
+                        return;
+                    }
                 }
-            
-            comCar.Close();
+                
+                comCar.Close();
+            }
+            catch (Exception ex)
+            {
+                ExceptionShower.ShowMsgBox(ex);
+            }
         }
 
         private void Recognition(out string figureName, out double figurePercent)
         {
-            ShapeRecognition SR = new ShapeRecognition();
+            try
+            {
+                ShapeRecognition SR = new ShapeRecognition();
 
-            SR.DetectObject(pictureWebCam.Image, "Templates", out figureName, out figurePercent);
+                SR.DetectObject(pictureWebCam.Image, "Templates", out figureName, out figurePercent);
+            }
+            catch (Exception ex)
+            {
+                figureName = "null";
+                figurePercent = 0;
+                ExceptionShower.ShowMsgBox(ex);
+            }
         }
 
         private void ToImgHistory()
         {
-            if (imgNumber < 10)
+            try
             {
-                imgHistory[imgNumber] = pictureWebCam.Image;
-                imgNumber++;
-                trackBar1.Maximum = imgNumber;
-            }
-            else
-            {
-                for(int i = 0; i < 9; i++)
+                if (imgNumber < 10)
                 {
-                    imgHistory[i] = imgHistory[i + 1];
+                    imgHistory[imgNumber] = pictureWebCam.Image;
+                    imgNumber++;
+                    trackBar1.Maximum = imgNumber;
                 }
-                imgHistory[9] = pictureWebCam.Image;
+                else
+                {
+                    for (int i = 0; i < 9; i++)
+                    {
+                        imgHistory[i] = imgHistory[i + 1];
+                    }
+                    imgHistory[9] = pictureWebCam.Image;
+                }
+            }
+            catch (Exception ex)
+            {
+                ExceptionShower.ShowMsgBox(ex);
             }
         }
-        
+
         private void buttonSettings_Click(object sender, EventArgs e)
         {
-            labelStatusBar.Text = "Открыто окно настрек";
-            SettingsForm settingsForm = new SettingsForm();
-            if (settingsForm.ShowDialog() == DialogResult.OK)
+            try
             {
-                Registry.SetValue(@"HKEY_CURRENT_USER\SOFTWARE\Des1re Programs\AssemblyLine", "CameraPath", settingsForm.cameraPath);
-                Registry.SetValue(@"HKEY_CURRENT_USER\SOFTWARE\Des1re Programs\AssemblyLine", "TrainingMode", settingsForm.trainingMode);
-                Registry.SetValue(@"HKEY_CURRENT_USER\SOFTWARE\Des1re Programs\AssemblyLine", "RecognitionThreshold", settingsForm.recognitionThreshold);
+                labelStatusBar.Text = "Открыто окно настрек";
+                SettingsForm settingsForm = new SettingsForm();
+                if (settingsForm.ShowDialog() == DialogResult.OK)
+                {
+                    Registry.SetValue(@"HKEY_CURRENT_USER\SOFTWARE\Des1re Programs\AssemblyLine", "CameraPath", settingsForm.cameraPath);
+                    Registry.SetValue(@"HKEY_CURRENT_USER\SOFTWARE\Des1re Programs\AssemblyLine", "TrainingMode", settingsForm.trainingMode);
+                    Registry.SetValue(@"HKEY_CURRENT_USER\SOFTWARE\Des1re Programs\AssemblyLine", "RecognitionThreshold", settingsForm.recognitionThreshold);
 
-                trainingMode = settingsForm.trainingMode;
-                recognitionThreshold = Convert.ToDouble(settingsForm.recognitionThreshold);
-                labelStatusBar.Text = "Настройки сохранены!";
+                    trainingMode = settingsForm.trainingMode;
+                    recognitionThreshold = Convert.ToDouble(settingsForm.recognitionThreshold);
+                    labelStatusBar.Text = "Настройки сохранены!";
+                }
+            }
+            catch (Exception ex)
+            {
+                ExceptionShower.ShowMsgBox(ex);
             }
         }
 
         private void buttonCamera_Click(object sender, EventArgs e)
         {
+
             if (!cameraIsCapturing)
             {
                 string camPath = Registry.GetValue(@"HKEY_CURRENT_USER\SOFTWARE\Des1re Programs\AssemblyLine", "CameraPath", "").ToString();
@@ -146,7 +188,6 @@ namespace AssemblyLine
 
                 if (camId >= 0)
                 {
-                    
                     camera = new Capture(camId);
                     cameraIsCapturing = true;
                     buttonCamera.Text = "Выключить камеру";
@@ -170,104 +211,160 @@ namespace AssemblyLine
 
         private void buttonLine_Click(object sender, EventArgs e)
         {
-            if (carGo)
+            try
             {
-                carGo = false;
-                buttonLine.Text = "Включить ленту";
+                if (carGo)
+                {
+                    carGo = false;
+                    buttonLine.Text = "Включить ленту";
+                }
+                else
+                {
+                    carGo = true;
+                    buttonLine.Text = "Выключить ленту";
+                }
+                labelStatusBar.Text = "Лента: " + carGo.ToString();
             }
-            else
+            catch (Exception ex)
             {
-                carGo = true;
-                buttonLine.Text = "Выключить ленту";
+                ExceptionShower.ShowMsgBox(ex);
             }
-            labelStatusBar.Text = "Лента: " + carGo.ToString();
         }
 
         private void timerListenCOM_Tick(object sender, EventArgs e)
         {
-            if (comArduino.BytesToRead > 0)
+            try
             {
-                int command = comArduino.ReadByte();
-                switch (command)
+                if (comArduino.BytesToRead > 0)
                 {
-                    case 7: // Предмет перед сенсором
-                        {
-                            carGo = false;
-                            buttonLine.Text = "Включить ленту"; // Включить машинку
-
-                            
-                            if (trainingMode)
+                    int command = comArduino.ReadByte();
+                    switch (command)
+                    {
+                        case 7: // Предмет перед сенсором
                             {
-                                TrainingForm trainingForm = new TrainingForm(pictureWebCam.Image);
-                                if (trainingForm.ShowDialog() == DialogResult.OK)
-                                    labelStatusBar.Text = "Обучение успешно выполнено";
-
-                                comArduino.Write("3");
-                            }
-                            else
-                            {
-                                string figureName;
-                                double figurePercent;
+                                carGo = false;
+                                buttonLine.Text = "Включить ленту"; // Включить машинку
 
 
-                                timerWebCam_Tick(null, null);
-                                timerWebCam_Tick(null, null);
-                                ToImgHistory();
-                                trackBar1.Value = trackBar1.Maximum;
+                                labelStatusBar.Text = "Пожалйуста, подождите. Фокусировка камеры!";
 
-                                Recognition(out figureName, out figurePercent);
-
-                                labelStatusBar.Text = figureName + " found with " + Math.Round(figurePercent*100, 2) + "%";
-
-                                if (figurePercent * 100 < recognitionThreshold)
+                                for(int i = 0; i < 30; i++)
                                 {
-                                    carGoBack = true;
+                                    Image<Bgr, Byte> img = camera.QueryFrame().ToImage<Bgr, Byte>();
+                                    pictureWebCam.Image = img.ToBitmap();
+
+                                    img.Dispose();
+
+                                    Thread.Sleep(10);
+                                    this.Refresh();
+                                }
+
+                                if (trainingMode)
+                                {
+                                    TrainingForm trainingForm = new TrainingForm(pictureWebCam.Image);
+                                    if (trainingForm.ShowDialog() == DialogResult.OK)
+                                        labelStatusBar.Text = "Обучение успешно выполнено";
+
                                     comArduino.Write("3");
-                                    return;
                                 }
-
-                                DirectoryInfo dir = Directory.CreateDirectory(Path.Combine("Templates", figureName));
-                                string pathObjInfo = Path.Combine(dir.FullName, "ObjectInfo.xml");
-
-                                Stream stream = new FileStream(pathObjInfo, FileMode.Open);
-                                XmlSerializer serializer = new XmlSerializer(typeof(ObjectInfo));
-                                ObjectInfo objInfo = (ObjectInfo)serializer.Deserialize(stream);
-                                stream.Close();
-
-                                switch (objInfo.Direction)
+                                else
                                 {
-                                    case "Left":
-                                        comArduino.Write("1");
-                                        break;
-                                    case "Right":
-                                        comArduino.Write("2");
-                                        break;
+                                    string figureName;
+                                    double figurePercent;
 
-                                    default:
+                                    if (trackBar1.Value != trackBar1.Maximum)
+                                    {
+                                        timerWebCam_Tick(null, null);
+                                        timerWebCam_Tick(null, null);
+                                    }
+                                    ToImgHistory();
+                                    trackBar1.Value = trackBar1.Maximum;
+
+                                    if (firstPhoto)
+                                    {
+                                        trackBar1.Enabled = true;
+                                        buttonToFirst.Enabled = true;
+                                        buttonToWebcam.Enabled = true;
+                                        firstPhoto = false;
+                                    }
+
+                                    Recognition(out figureName, out figurePercent);
+
+                                    labelStatusBar.Text = figureName + " found with " + Math.Round(figurePercent * 100, 2) + "%";
+
+                                    if (figurePercent * 100 < recognitionThreshold)
+                                    {
+                                        carGoBack = true;
                                         comArduino.Write("3");
-                                        break;
-                                }
-                                
-                            }
-                        }
-                        break;
-                    case 8: // все выполнено
-                        carGoBack = true;
-                        break;
+                                        return;
+                                    }
 
-                    default:
-                        break;
+                                    DirectoryInfo dir = Directory.CreateDirectory(Path.Combine("Templates", figureName));
+                                    string pathObjInfo = Path.Combine(dir.FullName, "ObjectInfo.xml");
+
+                                    Stream stream = new FileStream(pathObjInfo, FileMode.Open);
+                                    XmlSerializer serializer = new XmlSerializer(typeof(ObjectInfo));
+                                    ObjectInfo objInfo = (ObjectInfo)serializer.Deserialize(stream);
+                                    stream.Close();
+
+                                    switch (objInfo.Direction)
+                                    {
+                                        case "Left":
+                                            comArduino.Write("1");
+                                            break;
+                                        case "Right":
+                                            comArduino.Write("2");
+                                            break;
+
+                                        default:
+                                            comArduino.Write("3");
+                                            break;
+                                    }
+
+                                }
+                            }
+                            break;
+                        case 8: // все выполнено
+                            carGoBack = true;
+                            break;
+
+                        default:
+                            break;
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                ExceptionShower.ShowMsgBox(ex);
             }
         }
 
         private void timerWebCam_Tick(object sender, EventArgs e)
         {
-            Image<Bgr, Byte> img = camera.QueryFrame().ToImage<Bgr, Byte>();
-            pictureWebCam.Image = img.ToBitmap();
+            try
+            {
+                Image<Bgr, Byte> img = camera.QueryFrame().ToImage<Bgr, Byte>();
+                pictureWebCam.Image = img.ToBitmap();
 
-            img.Dispose();
+                img.Dispose();
 
+                if (isNeedCamFokus)
+                {
+                    ticks++;
+
+                    if (ticks >= 20)
+                    {
+                        isCamFokus = true;
+                        isNeedCamFokus = false;
+                    }
+                }
+                else
+                    ticks = 0;
+            }
+            catch (Exception ex)
+            {
+                ExceptionShower.ShowMsgBox(ex);
+            }
         }
 
         private void buttonArduino_Click(object sender, EventArgs e)
@@ -297,6 +394,9 @@ namespace AssemblyLine
                     // arduino
                     timerListenCOM.Enabled = false;
                     comArduino.Close();
+
+                    
+                    threadCarGoing = new Thread(this.carGoing);
                 }
                 labelStatusBar.Text = "Arduino: " + arduinoIsWorking.ToString();
             }
@@ -320,17 +420,24 @@ namespace AssemblyLine
 
         private void trackBar1_ValueChanged(object sender, EventArgs e)
         {
-            TrackBar trackBar = (TrackBar)sender;
-            if (trackBar.Value != trackBar.Maximum)
+            try
             {
-                timerWebCam.Enabled = false;
-                pictureWebCam.Image = imgHistory[trackBar.Value];
-                labelStatusBar.Text = "Открыто изображение №" + (trackBar.Value + 1);
+                TrackBar trackBar = (TrackBar)sender;
+                if (trackBar.Value != trackBar.Maximum)
+                {
+                    timerWebCam.Enabled = false;
+                    pictureWebCam.Image = imgHistory[trackBar.Value];
+                    labelStatusBar.Text = "Открыто изображение №" + (trackBar.Value + 1);
+                }
+                else
+                {
+                    timerWebCam.Enabled = true;
+                    labelStatusBar.Text = "Переход к вебкамере";
+                }
             }
-            else
+            catch (Exception ex)
             {
-                timerWebCam.Enabled = true;
-                labelStatusBar.Text = "Переход к вебкамере";
+                ExceptionShower.ShowMsgBox(ex);
             }
         }
 
@@ -339,6 +446,11 @@ namespace AssemblyLine
 
         private void buttonToFirst_Click(object sender, EventArgs e)
         { trackBar1.Value = 0;}
+
+        private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            isFormClosing = true;
+        }
         
     }
 }

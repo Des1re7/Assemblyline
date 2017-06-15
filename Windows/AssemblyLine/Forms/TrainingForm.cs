@@ -40,11 +40,28 @@ namespace AssemblyLine
 
         private void fillComboBox(string templatesFolder)
         {
-            List<string> templatesFolders = new List<string>(Directory.EnumerateDirectories(templatesFolder));
-
-            foreach (var tmpFld in templatesFolders)
+            try
             {
-                comboBoxTemplates.Items.Add(Path.GetFileName(tmpFld));
+                List<string> templatesFolders;
+                if (Directory.Exists("Templates"))
+                {
+                    templatesFolders = new List<string>(Directory.EnumerateDirectories(templatesFolder));
+
+                    foreach (var tmpFld in templatesFolders)
+                    {
+                        comboBoxTemplates.Items.Add(Path.GetFileName(tmpFld));
+                    }
+                    comboBoxTemplates.SelectedIndex = 0;
+                }
+                else
+                {
+                    DirectoryInfo dir = Directory.CreateDirectory("Templates");
+                    fillComboBox(templatesFolder);
+                }
+            }
+            catch
+            {
+                MessageBox.Show("Не удалось заполнить поле с названиями шаблонов!", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -81,48 +98,54 @@ namespace AssemblyLine
 
         private void buttonSave_Click(object sender, EventArgs e)
         {
-            if (rectCropImage.Width == 0 || rectCropImage.Height == 0)
+            try
             {
-                MessageBox.Show("Необходимо выделить фигуру!", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
-            if (comboBoxTemplates.SelectedIndex > 0 || textBoxNewName.Text != string.Empty)
-            {
-                string pathTemplate;
-
-                if (comboBoxTemplates.SelectedIndex == 0)
+                if (rectCropImage.Width == 0 || rectCropImage.Height == 0)
                 {
-                    DirectoryInfo dir = Directory.CreateDirectory(Path.Combine("Templates", textBoxNewName.Text));
-                    pathTemplate = dir.FullName;
+                    MessageBox.Show("Необходимо выделить фигуру!", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+                if (comboBoxTemplates.SelectedIndex > 0 || textBoxNewName.Text != string.Empty)
+                {
+                    string pathTemplate;
 
-                    ObjectInfo objInfo = new ObjectInfo(textBoxNewName.Text, comboBoxDirection.SelectedItem.ToString());
-                    Stream writer = new FileStream(Path.Combine(pathTemplate, "ObjectInfo.xml"), FileMode.Create);
-                    XmlSerializer serializer = new XmlSerializer(typeof(ObjectInfo));
-                    serializer.Serialize(writer, objInfo);
-                    writer.Close();
+                    if (comboBoxTemplates.SelectedIndex == 0)
+                    {
+                        DirectoryInfo dir = Directory.CreateDirectory(Path.Combine("Templates", textBoxNewName.Text));
+                        pathTemplate = dir.FullName;
+
+                        ObjectInfo objInfo = new ObjectInfo(textBoxNewName.Text, comboBoxDirection.SelectedItem.ToString());
+                        Stream writer = new FileStream(Path.Combine(pathTemplate, "ObjectInfo.xml"), FileMode.Create);
+                        XmlSerializer serializer = new XmlSerializer(typeof(ObjectInfo));
+                        serializer.Serialize(writer, objInfo);
+                        writer.Close();
+                    }
+                    else
+                        pathTemplate = Path.Combine("Templates", comboBoxTemplates.SelectedItem.ToString());
+
+                    int unixTimestamp = (int)(DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1))).TotalSeconds;
+
+                    Bitmap newBmp = new Bitmap(rectCropImage.Width, rectCropImage.Height);
+                    Bitmap image = new Bitmap(pictureBoxImage.Image);
+
+                    for (int i = 0; i < newBmp.Width; i++)
+                        for (int j = 0; j < newBmp.Height; j++)
+                            if (rectCropImage.X + i < image.Width & rectCropImage.Y + j < image.Height)
+                                newBmp.SetPixel(i, j, image.GetPixel(rectCropImage.X + i, rectCropImage.Y + j));
+                            else
+                                newBmp.SetPixel(i, j, Color.Black);
+
+                    newBmp.Save(Path.Combine(pathTemplate, unixTimestamp.ToString() + ".jpg"), ImageFormat.Jpeg);
+
+                    DialogResult = DialogResult.OK;
                 }
                 else
-                    pathTemplate = Path.Combine("Templates", comboBoxTemplates.SelectedItem.ToString());
-
-                int unixTimestamp = (int)(DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1))).TotalSeconds;
-
-                Bitmap newBmp = new Bitmap(rectCropImage.Width, rectCropImage.Height);
-                Bitmap image = new Bitmap(pictureBoxImage.Image);
-
-                for (int i = 0; i < newBmp.Width; i++)
-                    for (int j = 0; j < newBmp.Height; j++)
-                        if (rectCropImage.X + i < image.Width & rectCropImage.Y + j < image.Height)
-                            newBmp.SetPixel(i, j, image.GetPixel(rectCropImage.X + i, rectCropImage.Y + j));
-                        else
-                            newBmp.SetPixel(i, j, Color.Black);
-                
-                newBmp.Save(Path.Combine(pathTemplate, unixTimestamp.ToString() + ".jpg"), ImageFormat.Jpeg);
-                
-                DialogResult = DialogResult.OK;
+                    MessageBox.Show("Выберите готовый шаблон или впишите новое имя!", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
-            else
-                MessageBox.Show("Выберите готовый шаблон или впишите новое имя!", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-
+            catch
+            {
+                MessageBox.Show("Ошибка сохранения шаблона!", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private void buttonCancel_Click(object sender, EventArgs e)
@@ -142,17 +165,24 @@ namespace AssemblyLine
         }
         private void displayLayoutNew(bool display = true)
         {
-            if (display)
+            try
             {
-                tableLayoutMain.RowStyles[2].Height = 60;
-                tableLayoutNew.Visible = true;
-                this.Size = new Size(this.Size.Width, 645);
+                if (display)
+                {
+                    tableLayoutMain.RowStyles[2].Height = 60;
+                    tableLayoutNew.Visible = true;
+                    this.Size = new Size(this.Size.Width, 645);
+                }
+                else
+                {
+                    tableLayoutMain.RowStyles[2].Height = 0;
+                    tableLayoutNew.Visible = false;
+                    this.Size = new Size(this.Size.Width, 585);
+                }
             }
-            else
+            catch
             {
-                tableLayoutMain.RowStyles[2].Height = 0;
-                tableLayoutNew.Visible = false;
-                this.Size = new Size(this.Size.Width, 585);
+                MessageBox.Show("Не удалось настроить отображение окна!", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -175,54 +205,61 @@ namespace AssemblyLine
 
         private void pictureBoxImage_MouseMove(object sender, MouseEventArgs e)
         {
-            if (bSelectingImage)
+            try
             {
-                Point ptCurrent = new Point(e.X, e.Y);
-                
-                if (ptCurrent.X > pictureBoxImage.Image.Width)
-                    ptCurrent.X = pictureBoxImage.Image.Width;
-                else if (ptCurrent.X < 0)
-                    ptCurrent.X = 0;
-
-                if (ptCurrent.Y > pictureBoxImage.Image.Height)
-                    ptCurrent.Y = pictureBoxImage.Image.Height;
-                else if (ptCurrent.Y < 0)
-                    ptCurrent.Y = 0;
-
-                if (ptStartMouse.X == ptCurrent.X || ptStartMouse.Y == ptCurrent.Y)
-                    return;
-
-
-                if (ptCurrent.X > ptStartMouse.X && ptCurrent.Y > ptStartMouse.Y)
+                if (bSelectingImage)
                 {
-                    rectCropImage.Width = ptCurrent.X - ptStartMouse.X;
-                    rectCropImage.Height = ptCurrent.Y - ptStartMouse.Y;
-                }
-                else if (ptCurrent.X < ptStartMouse.X && ptCurrent.Y > ptStartMouse.Y)
-                {
-                    rectCropImage.Width = ptStartMouse.X - ptCurrent.X;
-                    rectCropImage.Height = ptCurrent.Y - ptStartMouse.Y;
-                    rectCropImage.X = ptCurrent.X;
-                    rectCropImage.Y = ptStartMouse.Y;
-                }
-                else if (ptCurrent.X > ptStartMouse.X && ptCurrent.Y < ptStartMouse.Y)
-                {
-                    rectCropImage.Width = ptCurrent.X - ptStartMouse.X;
-                    rectCropImage.Height = ptStartMouse.Y - ptCurrent.Y;
-                    rectCropImage.X = ptStartMouse.X;
-                    rectCropImage.Y = ptCurrent.Y;
-                }
-                else
-                {
-                    rectCropImage.Width = ptStartMouse.X - ptCurrent.X;
-                    rectCropImage.Height = ptStartMouse.Y - ptCurrent.Y;
-                    rectCropImage.X = ptCurrent.X;
-                    rectCropImage.Y = ptCurrent.Y;
-                }
+                    Point ptCurrent = new Point(e.X, e.Y);
 
-                pictureBoxImage.Refresh();
-                Graphics g = pictureBoxImage.CreateGraphics();
-                g.DrawRectangle(new Pen(Color.Red), rectCropImage);
+                    if (ptCurrent.X > pictureBoxImage.Image.Width)
+                        ptCurrent.X = pictureBoxImage.Image.Width;
+                    else if (ptCurrent.X < 0)
+                        ptCurrent.X = 0;
+
+                    if (ptCurrent.Y > pictureBoxImage.Image.Height)
+                        ptCurrent.Y = pictureBoxImage.Image.Height;
+                    else if (ptCurrent.Y < 0)
+                        ptCurrent.Y = 0;
+
+                    if (ptStartMouse.X == ptCurrent.X || ptStartMouse.Y == ptCurrent.Y)
+                        return;
+
+
+                    if (ptCurrent.X > ptStartMouse.X && ptCurrent.Y > ptStartMouse.Y)
+                    {
+                        rectCropImage.Width = ptCurrent.X - ptStartMouse.X;
+                        rectCropImage.Height = ptCurrent.Y - ptStartMouse.Y;
+                    }
+                    else if (ptCurrent.X < ptStartMouse.X && ptCurrent.Y > ptStartMouse.Y)
+                    {
+                        rectCropImage.Width = ptStartMouse.X - ptCurrent.X;
+                        rectCropImage.Height = ptCurrent.Y - ptStartMouse.Y;
+                        rectCropImage.X = ptCurrent.X;
+                        rectCropImage.Y = ptStartMouse.Y;
+                    }
+                    else if (ptCurrent.X > ptStartMouse.X && ptCurrent.Y < ptStartMouse.Y)
+                    {
+                        rectCropImage.Width = ptCurrent.X - ptStartMouse.X;
+                        rectCropImage.Height = ptStartMouse.Y - ptCurrent.Y;
+                        rectCropImage.X = ptStartMouse.X;
+                        rectCropImage.Y = ptCurrent.Y;
+                    }
+                    else
+                    {
+                        rectCropImage.Width = ptStartMouse.X - ptCurrent.X;
+                        rectCropImage.Height = ptStartMouse.Y - ptCurrent.Y;
+                        rectCropImage.X = ptCurrent.X;
+                        rectCropImage.Y = ptCurrent.Y;
+                    }
+
+                    pictureBoxImage.Refresh();
+                    Graphics g = pictureBoxImage.CreateGraphics();
+                    g.DrawRectangle(new Pen(Color.Red), rectCropImage);
+                }
+            }
+            catch
+            {
+                MessageBox.Show("Произошла ошибка при выделении фигуры!\nПопробуйте выделить заново.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
     }
